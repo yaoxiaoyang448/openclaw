@@ -1,3 +1,4 @@
+import type { PluginHookAuthenticatedOperator } from "../../plugins/hook-types.js";
 import type { QueueMode } from "../../../packages/gateway-protocol/src/schema/logs-chat.js";
 import {
   assertAdmittedRunOperatorAuthority,
@@ -47,6 +48,8 @@ type InternalReplySessionOptions = {
   queuedFollowupAbortSignal?: AbortSignal;
   /** Host-minted original operator authority; never restored from session metadata. */
   operatorAuthority?: AdmittedRunOperatorAuthority;
+  /** Original external chat.send source; not retained in queues or recovered runs. */
+  authenticatedOperator?: PluginHookAuthenticatedOperator;
   extractedFileImages?: ExtractedFileImage[];
   /** Rechecks the live Gateway caller before a chat login has a durable effect. */
   assertProviderLoginAuthority?: () => void;

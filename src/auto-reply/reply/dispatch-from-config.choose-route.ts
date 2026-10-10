@@ -1,3 +1,4 @@
+import { openBeforeDispatchOperatorContext } from "../../plugins/before-dispatch-operator.js";
 import { normalizeOptionalString } from "@openclaw/normalization-core/string-coerce";
 import {
   hasOutboundReplyContent,
@@ -626,6 +627,11 @@ export async function chooseDispatchRoute(state: PrepareDispatchOperationReadySt
       context: state,
       assertCurrent: () => state.assertCurrentBindingRoute(),
     };
+    const operatorScope = openBeforeDispatchOperatorContext(
+      params.replyOptions?.authenticatedOperator,
+      { sessionKey: beforeDispatchSessionKey, messageId: state.hookState.hookContext.messageId },
+      () => { getPreDispatchAbortSignal()?.throwIfAborted(); },
+    );
     const beforeDispatchResult = await traceReplyPhase("reply.before_dispatch_hooks", () =>
       runWithDispatchLifecycleAdmission(async () => {
         return await runWithDispatchAbortSignal(
@@ -655,6 +661,7 @@ export async function chooseDispatchRoute(state: PrepareDispatchOperationReadySt
                   conversationId: state.hookState.inboundClaimContext.conversationId,
                   sessionKey: beforeDispatchSessionKey,
                   senderId: state.hookState.hookContext.senderId,
+                  authenticatedOperator: operatorScope.context,
                   replyToId: state.hookState.hookContext.replyToId,
                   replyToIdFull: state.hookState.hookContext.replyToIdFull,
                   replyToBody: state.hookState.hookContext.replyToBody,
@@ -672,7 +679,7 @@ export async function chooseDispatchRoute(state: PrepareDispatchOperationReadySt
           trackDispatchLifecycleWork,
         );
       }),
-    );
+    ).finally(operatorScope.close);
     // The Host-owned slot — not the hook result — is authoritative. Once a
     // plugin established delegated ownership the durable lock exists, and the
     // hook result cannot reopen ordinary dispatch.
