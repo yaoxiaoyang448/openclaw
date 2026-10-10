@@ -395,7 +395,23 @@ export type PluginHookBeforeDispatchEvent = {
   timestamp?: number;
 };
 
+/** Host-owned live authority for one external Operator chat.send request.
+ * Not a named authenticated user. Never accepted from RPC/message/config data.
+ * Throws after request/connection/dispatch retirement or a binding mismatch.
+ * operatorId is the existing Host-authorized profile principal, never a token,
+ * connection identifier or session key. Possession of a returned statement is
+ * not live authorization; call assertCurrent immediately before admission.
+ */
+export type PluginHookAuthenticatedOperator = Readonly<{
+  assertCurrent: (binding: { sessionKey: string; messageId: string }) => Readonly<{
+    principalType: "authenticated_operator";
+    operatorId: string;
+  }>;
+}>;
+
 export type PluginHookBeforeDispatchContext = {
+  /** Current external Operator authority; absent for unproven/replayed/synthetic inputs. */
+  authenticatedOperator?: PluginHookAuthenticatedOperator;
   messageId?: string;
   channelId?: string;
   accountId?: string;

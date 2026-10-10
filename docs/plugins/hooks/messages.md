@@ -90,6 +90,33 @@ first-class fields before reading legacy metadata.
 `before_dispatch` receives the canonical inbound `messageId` in both its event
 and context.
 
+### Authenticated Operator requests
+
+For an admitted external `chat.send` request, `ctx.authenticatedOperator` may
+provide a Host-owned live capability. It is distinct from `senderId` and from a
+named authenticated user. Call it immediately before admitting work:
+
+```typescript
+const principal = ctx.authenticatedOperator?.assertCurrent({
+  sessionKey: ctx.sessionKey!,
+  messageId: ctx.messageId!,
+});
+// principal: { principalType: "authenticated_operator", operatorId: string }
+```
+
+The Operator ID is the existing Host-authorized profile principal. The Host
+checks the original request's issued authority, current connection/role/scopes,
+profile, qualified session target, cancellation and dispatch lifetime. A closed,
+revoked, switched or mismatched request throws; missing authority is omitted.
+The capability closes when the current `before_dispatch` invocation settles.
+Returned statements are snapshots, not reusable authorization evidence.
+
+RPC parameters, message/event fields, configuration, transcripts and recovered
+or queued runs cannot mint this context. Plugins must fail closed when required
+context is absent and apply their own exact principal/session allowlist. It does
+not grant action approval or establish delegated ownership; those retain their
+existing contracts. Other channels' `senderId` semantics are unchanged.
+
 ### Delegated ownership from `before_dispatch`
 
 A trusted `before_dispatch` handler can take responsibility for the current

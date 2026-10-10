@@ -1,3 +1,4 @@
+import { captureChatSendOperatorContext } from "./chat-send-operator-context.js";
 // Detached chat.send dispatch owns runtime delivery, post-dispatch persistence, and terminalization.
 import { performance } from "node:perf_hooks";
 import {
@@ -138,6 +139,22 @@ export function startChatDispatch(params: StartChatDispatchParams): void {
   };
 
   const jobSessionBinding = admission.sessionBinding;
+  const authenticatedOperator = !request.systemInputProvenance || request.systemInputProvenance.kind === "external_user"
+    ? captureChatSendOperatorContext({
+        client,
+        authority: admission.operatorAuthority,
+        sessionKey,
+        messageId: clientRunId,
+        assertRequestCurrent: () => {
+          admission.assertWorkAdmissionCurrent();
+          session.assertSessionTargetCurrent();
+          activeRunAbort.controller.signal.throwIfAborted();
+          if (ctx.SessionKey !== sessionKey || ctx.MessageSid !== clientRunId || sessionBinding.sessionKey !== sessionKey) {
+            throw new Error("OPERATOR_CONTEXT_DENIED");
+          }
+        },
+      })
+    : undefined;
   let agentRunStarted = false;
   let replyDispatchRun: ReplyDispatchRun | undefined;
   const isRunCurrent = () =>
@@ -329,6 +346,7 @@ export function startChatDispatch(params: StartChatDispatchParams): void {
                   : {}),
                 runId: clientRunId,
                 operatorAuthority: admission.operatorAuthority,
+                authenticatedOperator,
                 providerReviewAcknowledgment: request.providerReviewAcknowledgment,
                 dashboardReadAdmission,
                 skillWorkshopProposalRevision,

@@ -1,3 +1,5 @@
+import { assertAdmittedRunOperatorAuthority, registerAdmittedRunOperatorAuthority } from "./operator-authority-issuer.js";
+export { assertAdmittedRunOperatorAuthority } from "./operator-authority-issuer.js";
 /** Canonical operational instance and optional enabled execution-identity evidence. */
 import { randomUUID } from "node:crypto";
 import type { ProviderModelRef as ModelRef } from "@openclaw/model-catalog-core/model-catalog-refs";
@@ -24,7 +26,6 @@ import {
 } from "../infra/agent-run-registry.js";
 import type { GatewayAccessGrantRef } from "../plugins/gateway-access-policy.types.js";
 import { prepareGatewayContextBindingOwner } from "../plugins/runtime/gateway-context-binding-owner.js";
-import { resolveGlobalSingleton } from "../shared/global-singleton.js";
 import type { PreparedOperatorModelPolicy } from "./operator-model-policy.types.js";
 
 /** Operational lifecycle correlation. This is never identity or authorization evidence. */
@@ -66,12 +67,6 @@ export type AdmittedRunOperatorAuthority = Readonly<{
   /** Committed policy changes invalidate only executions using a removed model. */
   onModelPolicyChanged?: (listener: () => void) => () => void;
 }>;
-
-// Source and bundled module instances must recognize the same host-issued object.
-const operatorAuthorityIssuers = resolveGlobalSingleton(
-  Symbol.for("openclaw.admittedRunOperatorAuthority.issuers"),
-  () => new WeakSet<object>(),
-);
 
 /** Host-only construction; public reply options cannot manufacture a source capability. */
 export function createAdmittedRunOperatorAuthority(
@@ -132,16 +127,8 @@ export function createAdmittedRunOperatorAuthority(
         })
       : undefined,
   });
-  operatorAuthorityIssuers.add(authority);
+  registerAdmittedRunOperatorAuthority(authority);
   return authority;
-}
-
-export function assertAdmittedRunOperatorAuthority(
-  authority: unknown,
-): asserts authority is AdmittedRunOperatorAuthority {
-  if (!authority || typeof authority !== "object" || !operatorAuthorityIssuers.has(authority)) {
-    throw new Error("operator run authority must be issued by the host");
-  }
 }
 
 /** Selection never grants authority; callers must pass the original host-issued source. */
